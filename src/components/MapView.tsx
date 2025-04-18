@@ -1,73 +1,42 @@
-
 import React, { useEffect, useState, useRef } from "react";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { AlertCircle, MapPin, Navigation } from "lucide-react";
+import { useUserLocation } from "@/hooks/useUserLocation";
+import { fetchNearbyBusStops, BusStop } from "@/utils/mapUtils";
+import BusStopList from "./BusStopList";
+import { Card } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
 import { calculateRoute, getBusStops, getDefaultLocation, validateMapContainer } from "@/utils/mapUtils";
 import { defaultUserLocation } from "@/data/busData";
 import { BusType } from "@/components/BusList";
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import { AlertCircle, MapPin, Navigation } from "lucide-react";
 
 interface MapViewProps {
   selectedBus: BusType | null;
 }
 
 const MapView: React.FC<MapViewProps> = ({ selectedBus }) => {
-  const [userLocation, setUserLocation] = useState<[number, number]>(defaultUserLocation);
-  const [busStops, setBusStops] = useState<any[]>([]);
+  const { coordinates: userLocation, error: locationError, isLoading } = useUserLocation();
+  const [busStops, setBusStops] = useState<BusStop[]>([]);
   const [tooManyStops, setTooManyStops] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const [mapReady, setMapReady] = useState(false);
+  const [hoveredStop, setHoveredStop] = useState<BusStop | null>(null);
   const [mapError, setMapError] = useState<string | null>(null);
   const mapContainerRef = useRef<HTMLDivElement>(null);
+  const [mapReady, setMapReady] = useState(false);
 
-  // Get user location on mount
   useEffect(() => {
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          console.log("User location obtained successfully");
-          setUserLocation([position.coords.latitude, position.coords.longitude]);
-        },
-        (error) => {
-          console.error("Geolocation error:", error.message);
-          setMapError("Could not access your location. Using default location.");
-          // Use default location
-          setUserLocation(getDefaultLocation());
-        },
-        { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 }
-      );
-    } else {
-      console.error("Geolocation is not supported by this browser");
-      setMapError("Your browser doesn't support geolocation. Using default location.");
-      setUserLocation(getDefaultLocation());
-    }
-  }, []);
+    if (isLoading || !userLocation) return;
 
-  // When a bus is selected, calculate routes and get bus stops
-  useEffect(() => {
-    if (!selectedBus) {
-      setBusStops([]);
-      return;
-    }
-
-    setLoading(true);
-    setMapError(null);
-
-    // Get bus stops near the depot
-    getBusStops(selectedBus.depot_location[0], selectedBus.depot_location[1])
-      .then((stops) => {
+    fetchNearbyBusStops(userLocation)
+      .then(stops => {
         setBusStops(stops);
         setTooManyStops(stops.length >= 30);
-        setLoading(false);
       })
-      .catch((error) => {
-        console.error("Error getting bus stops:", error);
+      .catch(error => {
+        console.error("Error fetching bus stops:", error);
         setMapError("Failed to load bus stops. Please try again.");
-        setBusStops([]);
-        setLoading(false);
       });
-  }, [selectedBus]);
+  }, [userLocation, isLoading]);
 
-  // Initialize leaflet map on the client side
   useEffect(() => {
     if (typeof window === 'undefined' || !selectedBus || !mapContainerRef.current || mapReady) return;
 
@@ -131,8 +100,8 @@ const MapView: React.FC<MapViewProps> = ({ selectedBus }) => {
         
         // Add bus stop markers
         busStops.forEach(stop => {
-          if (stop.lat && stop.lon) {
-            L.marker([stop.lat, stop.lon], {
+          if (stop.coordinates && stop.coordinates.length === 2) {
+            L.marker(stop.coordinates, {
               icon: L.icon({
                 iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-red.png',
                 shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
@@ -141,7 +110,7 @@ const MapView: React.FC<MapViewProps> = ({ selectedBus }) => {
                 popupAnchor: [1, -34],
                 shadowSize: [41, 41]
               })
-            }).addTo(map).bindPopup(stop.tags?.name || 'Bus Stop');
+            }).addTo(map).bindPopup(stop.name || 'Bus Stop');
           }
         });
         
@@ -193,64 +162,46 @@ const MapView: React.FC<MapViewProps> = ({ selectedBus }) => {
     }
   }, [selectedBus, busStops, userLocation, mapReady]);
 
-  if (!selectedBus) {
+  if (isLoading) {
     return (
-      <div className="w-full h-64 md:h-80 lg:h-96 bg-gray-100 rounded-xl flex items-center justify-center text-gray-500">
-        <div className="flex flex-col items-center gap-2">
-          <MapPin size={32} className="text-gray-400" />
-          <p>Select a bus to view the route</p>
-        </div>
-      </div>
+      <Card className="w-full p-4">
+        <Skeleton className="h-[400px] w-full rounded-xl" />
+      </Card>
     );
   }
 
   return (
-    <div className="w-full p-4 bg-white rounded-xl shadow-md">
-      <h2 className="text-xl font-semibold mb-4 text-ksrtc-dark-purple flex items-center gap-2">
-        <Navigation className="h-5 w-5 text-ksrtc-purple" />
-        Route Map
-      </h2>
-      
-      {mapError && (
-        <Alert className="mb-4 bg-red-50 border border-red-200">
+    <div className="w-full space-y-4">
+      {(locationError || mapError) && (
+        <Alert className="bg-red-50 border border-red-200">
           <AlertCircle className="h-4 w-4 text-red-500" />
           <AlertDescription className="text-red-700">
-            {mapError}
+            {locationError || mapError}
           </AlertDescription>
         </Alert>
       )}
-      
-      {tooManyStops && (
-        <Alert className="mb-4 bg-amber-50 border border-amber-200">
-          <AlertCircle className="h-4 w-4 text-amber-500" />
-          <AlertDescription className="text-amber-700">
-            Zoom in to see more stops. Showing maximum of 30 stops in this area.
-          </AlertDescription>
-        </Alert>
-      )}
-      
-      <div className="h-64 sm:h-80 md:h-96 rounded-xl overflow-hidden border relative">
-        {loading && (
-          <div className="absolute inset-0 bg-gray-100 bg-opacity-75 flex items-center justify-center z-10">
-            <div className="animate-spin h-8 w-8 border-4 border-ksrtc-purple border-t-transparent rounded-full"></div>
+
+      <div className="grid lg:grid-cols-[1fr,2fr] gap-4">
+        <BusStopList
+          stops={busStops}
+          userLocation={userLocation}
+          onStopHover={setHoveredStop}
+          className="lg:block hidden"
+        />
+
+        <div className="space-y-4">
+          {tooManyStops && (
+            <Alert className="bg-amber-50 border border-amber-200">
+              <AlertCircle className="h-4 w-4 text-amber-500" />
+              <AlertDescription className="text-amber-700">
+                Zoom in to see more stops. Showing maximum of 30 stops in this area.
+              </AlertDescription>
+            </Alert>
+          )}
+
+          <div className="h-[60vh] rounded-xl overflow-hidden border relative">
+            <div id="map-container" ref={mapContainerRef} className="h-full w-full" />
           </div>
-        )}
-        
-        <div id="map-container" ref={mapContainerRef} className="h-full w-full"></div>
-      </div>
-      
-      <div className="mt-3 text-sm text-ksrtc-gray">
-        <div className="flex items-center gap-2 mb-1">
-          <div className="w-3 h-3 rounded-full bg-blue-500"></div>
-          <span>Your Location</span>
-        </div>
-        <div className="flex items-center gap-2 mb-1">
-          <div className="w-3 h-3 rounded-full bg-green-500"></div>
-          <span>Bus Depot</span>
-        </div>
-        <div className="flex items-center gap-2">
-          <div className="w-3 h-3 rounded-full bg-red-500"></div>
-          <span>Bus Stops</span>
         </div>
       </div>
     </div>

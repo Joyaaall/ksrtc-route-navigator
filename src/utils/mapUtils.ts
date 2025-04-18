@@ -1,4 +1,3 @@
-
 // Function to get bus stops around a location using Overpass API
 export async function getBusStops(lat: number, lon: number): Promise<any[]> {
   try {
@@ -57,4 +56,52 @@ export function validateMapContainer(containerId: string): boolean {
     return false;
   }
   return true;
+}
+
+export interface BusStop {
+  id: string;
+  name: string;
+  coordinates: [number, number];
+  routes?: string[];
+}
+
+export async function fetchNearbyBusStops(
+  location: [number, number],
+  radius: number = 2000
+): Promise<BusStop[]> {
+  try {
+    const busStops = await getBusStops(location[0], location[1]);
+    
+    return busStops
+      .filter(stop => stop.lat && stop.lon)
+      .map(stop => ({
+        id: stop.id.toString(),
+        name: stop.tags?.name || 'Bus Stop',
+        coordinates: [stop.lat, stop.lon] as [number, number],
+        routes: []
+      }))
+      .slice(0, 30); // Ensure we never return more than 30 stops
+      
+  } catch (error) {
+    console.error("Error fetching nearby bus stops:", error);
+    return [];
+  }
+}
+
+export function calculateDistance(
+  point1: [number, number],
+  point2: [number, number]
+): number {
+  const R = 6371e3; // Earth's radius in meters
+  const φ1 = (point1[0] * Math.PI) / 180;
+  const φ2 = (point2[0] * Math.PI) / 180;
+  const Δφ = ((point2[0] - point1[0]) * Math.PI) / 180;
+  const Δλ = ((point2[1] - point1[1]) * Math.PI) / 180;
+
+  const a = Math.sin(Δφ / 2) * Math.sin(Δφ / 2) +
+    Math.cos(φ1) * Math.cos(φ2) *
+    Math.sin(Δλ / 2) * Math.sin(Δλ / 2);
+    
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return R * c;
 }
