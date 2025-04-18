@@ -1,5 +1,4 @@
-
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, useEffect } from "react";
 import { useUserLocation } from "@/hooks/useUserLocation";
 import { fetchNearbyBusStops, BusStop } from "@/utils/mapUtils";
 import { BusType } from "@/components/BusList";
@@ -9,7 +8,8 @@ import LocationAlert from "./map/LocationAlert";
 import MapContainer from "./map/MapContainer";
 import StopMarkers from "./map/StopMarkers";
 import MapControls from "./map/MapControls";
-import type { Map as LeafletMap } from 'leaflet';
+import BusStopList from "@/components/BusStopList";
+import type { Map as LeafletMap } from "leaflet";
 
 interface MapViewProps {
   selectedBus: BusType | null;
@@ -27,7 +27,7 @@ const MapView: React.FC<MapViewProps> = ({ selectedBus }) => {
     setMap(newMap);
   }, []);
 
-  React.useEffect(() => {
+  useEffect(() => {
     if (isLoading || !userLocation) return;
 
     fetchNearbyBusStops(userLocation)
@@ -49,14 +49,12 @@ const MapView: React.FC<MapViewProps> = ({ selectedBus }) => {
     );
   }
 
-  if (!userLocation) {
-    return null;
-  }
+  if (!userLocation) return null;
 
   return (
     <div className="w-full space-y-4">
       <LocationAlert error={locationError || mapError} />
-      
+
       <div className="grid lg:grid-cols-[1fr,2fr] gap-4">
         <BusStopList
           stops={busStops}
@@ -67,7 +65,7 @@ const MapView: React.FC<MapViewProps> = ({ selectedBus }) => {
 
         <div className="space-y-4">
           <MapControls tooManyStops={tooManyStops} />
-          
+
           <MapContainer
             selectedBus={selectedBus}
             userLocation={userLocation}
@@ -75,7 +73,7 @@ const MapView: React.FC<MapViewProps> = ({ selectedBus }) => {
             onMapReady={handleMapReady}
             onStopHover={setHoveredStop}
           />
-          
+
           {map && (
             <StopMarkers
               map={map}
