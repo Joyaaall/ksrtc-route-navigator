@@ -1,3 +1,4 @@
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -99,5 +100,46 @@
 
   body {
     @apply bg-background text-foreground;
+  }
+}
+
+/* Map specific styles */
+#map-container {
+  height: 100%;
+  width: 100%;
+  min-height: 400px;
+}
+
+.pulsating-circle {
+  animation: pulse 1.5s infinite;
+}
+
+@keyframes pulse {
+  0% { opacity: 0.6; }
+  50% { opacity: 0.2; }
+  100% { opacity: 0.6; }
+}
+
+/* Responsive styles based on breakpoints */
+@media (max-width: 768px) {
+  #map-container {
+    min-height: 300px;
+  }
+}
+
+@media (max-width: 640px) {
+  #map-container {
+    min-height: 250px;
+  }
+}
+
+/* Make buttons more tappable on mobile */
+@media (max-width: 768px) {
+  button, 
+  [role="button"],
+  .select-trigger,
+  input[type="submit"] {
+    min-height: 48px;
+    min-width: 48px;
   }
 }
