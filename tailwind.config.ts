@@ -28,6 +28,19 @@ export default {
 					DEFAULT: 'hsl(var(--primary))',
 					foreground: 'hsl(var(--primary-foreground))'
 				},
+				ksrtc: {
+					purple: '#9b87f5',
+					'secondary-purple': '#7E69AB',
+					'tertiary-purple': '#6E59A5',
+					'dark-purple': '#1A1F2C',
+					'light-purple': '#D6BCFA',
+					gray: '#8E9196',
+					'soft-gray': '#F1F0FB',
+					'sky-blue': '#33C3F0',
+					'bright-blue': '#1EAEDB',
+					'ocean-blue': '#0EA5E9',
+					red: '#ea384c',
+				},
 				secondary: {
 					DEFAULT: 'hsl(var(--secondary))',
 					foreground: 'hsl(var(--secondary-foreground))'
