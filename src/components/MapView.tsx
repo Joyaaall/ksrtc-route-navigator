@@ -9,6 +9,8 @@ import MapContainer from "./map/MapContainer";
 import StopMarkers from "./map/StopMarkers";
 import MapControls from "./map/MapControls";
 import BusStopList from "@/components/BusStopList";
+import BusTimings from "@/components/BusTimings";
+import { busData } from "@/data/busData";
 import type { Map as LeafletMap } from "leaflet";
 
 interface MapViewProps {
@@ -23,19 +25,32 @@ const MapView: React.FC<MapViewProps> = ({ selectedBus }) => {
   const [mapError, setMapError] = useState<string | null>(null);
   const [map, setMap] = useState<LeafletMap | null>(null);
 
+  const [from, setFrom] = useState("");
+  const [to, setTo] = useState("");
+  const [filteredBuses, setFilteredBuses] = useState<typeof busData>([]);
+
   const handleMapReady = useCallback((newMap: LeafletMap) => {
     setMap(newMap);
   }, []);
+
+  const handleSearch = () => {
+    const results = busData.filter(
+      (bus) =>
+        bus.from.toLowerCase().includes(from.toLowerCase()) &&
+        bus.to.toLowerCase().includes(to.toLowerCase())
+    );
+    setFilteredBuses(results);
+  };
 
   useEffect(() => {
     if (isLoading || !userLocation) return;
 
     fetchNearbyBusStops(userLocation)
-      .then(stops => {
+      .then((stops) => {
         setBusStops(stops);
         setTooManyStops(stops.length >= 30);
       })
-      .catch(error => {
+      .catch((error) => {
         console.error("Error fetching bus stops:", error);
         setMapError("Failed to load bus stops. Please try again.");
       });
@@ -52,9 +67,40 @@ const MapView: React.FC<MapViewProps> = ({ selectedBus }) => {
   if (!userLocation) return null;
 
   return (
-    <div className="w-full space-y-4">
+    <div className="w-full space-y-6">
       <LocationAlert error={locationError || mapError} />
 
+      {/* Search Section */}
+      <div className="flex flex-wrap gap-2 items-center">
+        <input
+          value={from}
+          onChange={(e) => setFrom(e.target.value)}
+          placeholder="From (e.g. Ernakulam)"
+          className="p-2 border rounded w-full sm:w-1/3"
+        />
+        <input
+          value={to}
+          onChange={(e) => setTo(e.target.value)}
+          placeholder="To (e.g. Kozhikode)"
+          className="p-2 border rounded w-full sm:w-1/3"
+        />
+        <button
+          onClick={handleSearch}
+          className="bg-blue-600 text-white px-4 py-2 rounded w-full sm:w-auto"
+        >
+          Search Buses
+        </button>
+      </div>
+
+      {/* Show BusTimings if results are present */}
+      {filteredBuses.length > 0 && (
+        <div>
+          <h2 className="text-lg font-semibold mb-2">Available Buses</h2>
+          <BusTimings buses={filteredBuses} />
+        </div>
+      )}
+
+      {/* Main Layout: Bus Stop List + Map */}
       <div className="grid lg:grid-cols-[1fr,2fr] gap-4">
         <BusStopList
           stops={busStops}
